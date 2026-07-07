@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novel Scraper Studio</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --panel2: #1f2330;
+    --text: #e8eaf0; --muted: #9aa0b0; --accent: #7c9cff; --accent2: #58d3a5;
+    --border: #2a2f3e; --danger: #ff7b7b; --warn: #ffce6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", sans-serif; min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 10px 18px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border);
+         cursor: pointer; font-size: 14px; color: var(--muted); user-select: none; }
+  .tab.active { color: var(--text); border-color: var(--accent); background: var(--panel2); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+  .hidden { display: none !important; }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input[type=url], input[type=number] {
+    width: 100%; padding: 11px 12px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 12px; align-items: end; }
+  .row > div:first-child { flex: 1; }
+  .row > div:last-child { width: 130px; }
+
+  button.primary {
+    margin-top: 18px; padding: 11px 22px; border: none; border-radius: 9px;
+    background: var(--accent); color: #0d1020; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.ghost {
+    padding: 9px 16px; border-radius: 8px; background: transparent; color: var(--accent);
+    border: 1px solid var(--accent); font-size: 13px; cursor: pointer;
+  }
+  button.stop { background: var(--danger); }
+
+  .note { margin-top: 14px; font-size: 12.5px; color: var(--muted); background: var(--bg);
+          border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; line-height: 1.6; }
+  .note b { color: var(--warn); }
+
+  .progress-outer { margin-top: 20px; height: 10px; border-radius: 5px; background: var(--bg); overflow: hidden; border: 1px solid var(--border); }
+  .progress-inner { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .4s; }
+  .status-line { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .logbox { margin-top: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+            padding: 10px 12px; font: 12px/1.7 ui-monospace, Menlo, monospace; color: var(--muted);
+            max-height: 180px; overflow-y: auto; white-space: pre-wrap; }
+  .error { color: var(--danger); }
+
+  .drop {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 36px; text-align: center;
+    color: var(--muted); cursor: pointer; transition: border-color .2s;
+  }
+  .drop:hover, .drop.drag { border-color: var(--accent); color: var(--text); }
+  .file-meta { margin: 14px 0 4px; font-size: 14px; }
+  .file-meta b { color: var(--accent2); }
+
+  .chapters { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .chap {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  }
+  .chap .name { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chap .len { font-size: 11px; color: var(--muted); }
+  .copybtn {
+    flex-shrink: 0; padding: 7px 12px; font-size: 12.5px; border: none; border-radius: 8px;
+    background: var(--accent); color: #0d1020; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .copybtn.copied { background: var(--accent2); }
+  .toolbar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .count-pill { font-size: 12.5px; color: var(--muted); }
+  footer { margin-top: 40px; text-align: center; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📚 Novel <span>Scraper</span> Studio</h1>
+  <div class="sub">Scrape a web novel's table of contents into one .txt — or upload a .txt and copy it chapter by chapter.</div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="scrape">🕸 Scrape a novel</div>
+    <div class="tab" data-tab="upload">📋 Upload &amp; copy chapters</div>
+  </div>
+
+  <!-- ============ SCRAPE TAB ============ -->
+  <div class="panel" id="tab-scrape">
+    <div class="row">
+      <div>
+        <label>Table-of-contents URL (a page that lists chapter links)</label>
+        <input type="url" id="url" placeholder="https://example.com/novel/some-novel/">
+      </div>
+      <div>
+        <label>Delay (sec/ch)</label>
+        <input type="number" id="delay" value="0.5" min="0" max="5" step="0.1">
+      </div>
+    </div>
+    <button class="primary" id="go">Start scraping</button>
+    <button class="primary stop hidden" id="stop">Stop</button>
+
+    <div class="note">
+      <b>Note:</b> this is a static site, so pages are fetched through public CORS proxies.
+      Most novel sites work, but some block proxies — if scraping fails, the log will say so.
+      Chapters are detected by links containing "chapter-N"; TOC pagination (<code>?page=N</code>) is followed automatically.
+      Please keep a polite delay and only scrape content you're allowed to download.
+    </div>
+
+    <div id="prog-wrap" class="hidden">
+      <div class="progress-outer"><div class="progress-inner" id="bar"></div></div>
+      <div class="status-line" id="status">Starting…</div>
+      <div class="logbox" id="log"></div>
+      <button class="primary hidden" id="dl">⬇ Download .txt</button>
+    </div>
+  </div>
+
+  <!-- ============ UPLOAD TAB ============ -->
+  <div class="panel hidden" id="tab-upload">
+    <div class="drop" id="drop">
+      Drop a .txt file here, or click to choose.<br>
+      <small>Chapters are detected by <code>====</code> header blocks (the format this tool produces), or by "Chapter N" lines.</small>
+      <input type="file" id="file" accept=".txt,text/plain" style="display:none">
+    </div>
+    <div class="file-meta hidden" id="meta"></div>
+    <div class="toolbar hidden" id="toolbar">
+      <button class="ghost" id="copyall">Copy entire book</button>
+      <span class="count-pill" id="count"></span>
+    </div>
+    <div class="chapters" id="chapters"></div>
+  </div>
+
+  <footer>Runs entirely in your browser — no data is uploaded anywhere.</footer>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  $('tab-scrape').classList.toggle('hidden', t.dataset.tab !== 'scrape');
+  $('tab-upload').classList.toggle('hidden', t.dataset.tab !== 'upload');
+});
+
+// =====================================================================
+// SCRAPE (client-side, via CORS proxies)
+// =====================================================================
+const PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+];
+let workingProxy = null;
+let aborted = false;
+
+const SKIP = [
+  'this is a fan translation', 'support the author', 'support me on patreon',
+  'join our discord', 'buy me a', 'ko-fi', 'read ahead', 'table of contents',
+  'previous chapter', 'next chapter', 'chapters in advance',
+];
+const CONTENT_SELECTORS = [
+  '#chapter-content', '.chapter-formatting', '.entry-content',
+  '.reading-content', '.chapter-content', '.text-left', 'article',
+];
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function fetchPage(url) {
+  const order = workingProxy !== null
+    ? [PROXIES[workingProxy], ...PROXIES.filter((_, i) => i !== workingProxy)]
+    : PROXIES;
+  let lastErr;
+  for (const make of order) {
+    try {
+      const res = await fetch(make(url), { redirect: 'follow' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      if (text.length < 500) throw new Error('empty/blocked response');
+      workingProxy = PROXIES.indexOf(make);
+      return text;
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error('All CORS proxies failed for ' + url + ' (' + lastErr + ')');
+}
+
+function chapterNum(u) {
+  let m = u.match(/chapter[-_/]?(\d+(?:\.\d+)?)/i);
+  if (m) return parseFloat(m[1]);
+  m = u.match(/(\d+(?:\.\d+)?)(?=[^\d]*$)/);
+  return m ? parseFloat(m[1]) : 0;
+}
+
+function scanLinks(html, baseUrl, host, seen, ordered) {
+  let added = 0;
+  const re = /href=["']([^"'#]+)["']/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    let u;
+    try { u = new URL(m[1], baseUrl); } catch { continue; }
+    if (u.host !== host) continue;
+    if (!/chapter[-_/]?\d/i.test(u.pathname)) continue;
+    const clean = u.origin + u.pathname;
+    if (!seen.has(clean)) { seen.add(clean); ordered.push(clean); added++; }
+  }
+  return added;
+}
+
+async function collectChapterUrls(tocUrl, log) {
+  const host = new URL(tocUrl).host;
+  const seen = new Set(), ordered = [];
+  const first = await fetchPage(tocUrl);
+  scanLinks(first, tocUrl, host, seen, ordered);
+  log(`TOC page 1: ${ordered.length} chapter links`);
+
+  const params = [...new Set([...first.matchAll(/[?&]([\w-]*page)=\d+/g)].map(m => m[1]))];
+  for (const param of params) {
+    let emptyStreak = 0;
+    for (let n = 2; n < 100 && !aborted; n++) {
+      const sep = tocUrl.includes('?') ? '&' : '?';
+      let added = 0;
+      try { added = scanLinks(await fetchPage(`${tocUrl}${sep}${param}=${n}`), tocUrl, host, seen, ordered); }
+      catch { break; }
+      log(`TOC ${param}=${n}: +${added} links`);
+      emptyStreak = added === 0 ? emptyStreak + 1 : 0;
+      if (emptyStreak >= 2) break;
+    }
+    if (ordered.length) break;
+  }
+  ordered.sort((a, b) => chapterNum(a) - chapterNum(b));
+  return ordered;
+}
+
+function extractChapter(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let title = (doc.title || '').trim()
+    .replace(/\s*[|»–-]\s*(Hosted Novel|Little Panda|Baihe Tales).*$/i, '').trim();
+
+  let node = null, best = 0;
+  for (const sel of CONTENT_SELECTORS) {
+    const cand = doc.querySelector(sel);
+    if (cand) {
+      const score = (cand.textContent || '').trim().length;
+      if (score > best) { node = cand; best = score; }
+    }
+  }
+  if (!node) return { title, body: '' };
+
+  node.querySelectorAll('script,style,ins,.sharedaddy,.jp-relatedposts,.code-block,.adsbygoogle,.hidden')
+      .forEach(el => el.remove());
+
+  const paras = [];
+  node.querySelectorAll('p,blockquote').forEach(el => {
+    const txt = el.textContent.replace(/\s+/g, ' ').trim();
+    if (!txt || txt.toLowerCase() === 'toc') return;
+    const low = txt.toLowerCase();
+    if (SKIP.some(s => low.includes(s))) return;
+    paras.push(txt);
+  });
+  const body = paras.length ? paras.join('\n\n') : node.textContent.trim();
+  return { title, body };
+}
+
+let resultText = '', resultName = 'novel.txt';
+
+$('go').onclick = async () => {
+  const url = $('url').value.trim();
+  if (!/^https?:\/\//.test(url)) return alert('Enter a valid http(s) URL first.');
+  const delay = Math.min(Math.max(parseFloat($('delay').value) || 0.5, 0), 5) * 1000;
+
+  aborted = false;
+  $('go').classList.add('hidden');
+  $('stop').classList.remove('hidden');
+  $('prog-wrap').classList.remove('hidden');
+  $('dl').classList.add('hidden');
+  $('bar').style.width = '0%';
+  $('log').textContent = '';
+  $('status').textContent = 'Collecting chapter links…';
+  const log = msg => {
+    $('log').textContent += msg + '\n';
+    $('log').scrollTop = $('log').scrollHeight;
+  };
+
+  try {
+    const toc = await fetchPage(url);
+    const tocDoc = new DOMParser().parseFromString(toc, 'text/html');
+    const novelTitle = (tocDoc.title || 'novel').split(/\s*[|»–-]\s*/)[0].trim() || 'novel';
+
+    const urls = await collectChapterUrls(url, log);
+    if (!urls.length) throw new Error('No chapter links found on that page.');
+    log(`Total: ${urls.length} chapters`);
+
+    const chunks = [`${novelTitle}\nSource: ${new URL(url).host}\n`];
+    for (let i = 0; i < urls.length; i++) {
+      if (aborted) { log('Stopped by user.'); break; }
+      const { title, body } = extractChapter(await fetchPage(urls[i]));
+      chunks.push(`\n\n${'='.repeat(60)}\n${title}\n${'='.repeat(60)}\n\n${body}\n`);
+      $('bar').style.width = (100 * (i + 1) / urls.length).toFixed(1) + '%';
+      $('status').textContent = `${novelTitle} — ${i + 1}/${urls.length} chapters`;
+      log(`[${i + 1}/${urls.length}] ${title} (${body.length} chars)`);
+      if (delay) await sleep(delay);
+    }
+
+    resultText = chunks.join('');
+    resultName = (novelTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'novel') + '.txt';
+    $('status').textContent = aborted
+      ? `⏹ Stopped — partial file available below.`
+      : `✅ Done — ${urls.length} chapters scraped.`;
+    $('dl').classList.remove('hidden');
+  } catch (e) {
+    $('status').innerHTML = '<span class="error">❌ ' + escapeHtml(e.message) + '</span>';
+    log('ERROR: ' + e.message);
+  } finally {
+    $('go').classList.remove('hidden');
+    $('stop').classList.add('hidden');
+  }
+};
+
+$('stop').onclick = () => { aborted = true; };
+
+$('dl').onclick = () => {
+  const blob = new Blob([resultText], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = resultName;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// =====================================================================
+// UPLOAD & PER-CHAPTER COPY
+// =====================================================================
+const drop = $('drop'), fileInput = $('file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('drag'); };
+drop.ondragleave = () => drop.classList.remove('drag');
+drop.ondrop = e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+};
+fileInput.onchange = () => fileInput.files[0] && loadFile(fileInput.files[0]);
+
+let bookText = '';
+
+function loadFile(f) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    bookText = reader.result;
+    renderChapters(f.name, splitChapters(bookText));
+  };
+  reader.readAsText(f, 'utf-8');
+}
+
+function splitChapters(text) {
+  const bySeparator = (re) => {
+    let m, marks = [];
+    while ((m = re.exec(text)) !== null)
+      marks.push({ title: m[1].trim(), headStart: m.index, bodyStart: re.lastIndex });
+    if (marks.length < 2) return null;
+    return marks.map((mk, i) => ({
+      title: mk.title,
+      body: text.slice(mk.bodyStart, i + 1 < marks.length ? marks[i + 1].headStart : undefined).trim()
+    }));
+  };
+  return bySeparator(/^={4,}\s*\n(.+?)\n={4,}\s*$/gm)
+      || bySeparator(/^(chapter\s+\d+.*)$/gim)
+      || [{ title: 'Full text', body: text.trim() }];
+}
+
+function renderChapters(fname, chapters) {
+  $('meta').classList.remove('hidden');
+  $('toolbar').classList.remove('hidden');
+  $('meta').innerHTML = `Loaded <b>${escapeHtml(fname)}</b> — detected <b>${chapters.length}</b> chapter${chapters.length === 1 ? '' : 's'}.`;
+  $('count').textContent = chapters.length + ' copy buttons';
+  const holder = $('chapters');
+  holder.innerHTML = '';
+  chapters.forEach(ch => {
+    const div = document.createElement('div');
+    div.className = 'chap';
+    const info = document.createElement('div');
+    info.style.minWidth = '0';
+    info.innerHTML = `<div class="name" title="${escapeHtml(ch.title)}">${escapeHtml(ch.title)}</div>
+                      <div class="len">${ch.body.length.toLocaleString()} chars</div>`;
+    const btn = document.createElement('button');
+    btn.className = 'copybtn';
+    btn.textContent = 'Copy';
+    btn.onclick = () => copyText(`${ch.title}\n\n${ch.body}`, btn);
+    div.append(info, btn);
+    holder.appendChild(div);
+  });
+  $('copyall').onclick = () => copyText(bookText, $('copyall'));
+}
+
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  const old = btn.textContent;
+  btn.textContent = '✓ Copied';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = old; btn.classList.remove('copied'); }, 1400);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
