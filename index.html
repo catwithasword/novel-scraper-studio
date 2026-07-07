@@ -66,12 +66,12 @@
   .file-meta { margin: 14px 0 4px; font-size: 14px; }
   .file-meta b { color: var(--accent2); }
 
-  .chapters { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .chapters { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .chap {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
   }
-  .chap .name { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chap .num { font-size: 24px; font-weight: 700; color: var(--accent); line-height: 1.1; }
   .chap .len { font-size: 11px; color: var(--muted); }
   .copybtn {
     flex-shrink: 0; padding: 7px 12px; font-size: 12.5px; border: none; border-radius: 8px;
@@ -384,17 +384,19 @@ function renderChapters(fname, chapters) {
   $('count').textContent = chapters.length + ' copy buttons';
   const holder = $('chapters');
   holder.innerHTML = '';
-  chapters.forEach(ch => {
+  chapters.forEach((ch, i) => {
+    const m = ch.title.match(/chapter[\s._-]*(\d+(?:\.\d+)?)/i);
+    const num = m ? m[1] : String(i + 1);
     const div = document.createElement('div');
     div.className = 'chap';
     const info = document.createElement('div');
     info.style.minWidth = '0';
-    info.innerHTML = `<div class="name" title="${escapeHtml(ch.title)}">${escapeHtml(ch.title)}</div>
+    info.innerHTML = `<div class="num" title="${escapeHtml(ch.title)}">${escapeHtml(num)}</div>
                       <div class="len">${ch.body.length.toLocaleString()} chars</div>`;
     const btn = document.createElement('button');
     btn.className = 'copybtn';
     btn.textContent = 'Copy';
-    btn.onclick = () => copyText(`${ch.title}\n\n${ch.body}`, btn);
+    btn.onclick = () => copyText(ch.body, btn);
     div.append(info, btn);
     holder.appendChild(div);
   });
