@@ -241,10 +241,24 @@ async function collectChapterUrls(tocUrl, log) {
   return ordered;
 }
 
-function extractChapter(html) {
+const HEADING_SELECTORS = ['.entry-title', '.chapter-title', '#chapter-heading', 'h1', 'h2'];
+
+function extractChapter(html, url = '') {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  let title = (doc.title || '').trim()
-    .replace(/\s*[|»–-]\s*(Hosted Novel|Little Panda|Baihe Tales).*$/i, '').trim();
+  let title = '';
+  for (const sel of HEADING_SELECTORS) {
+    const t = (doc.querySelector(sel)?.textContent || '').replace(/\s+/g, ' ').trim();
+    if (t && /\d|ตอน|chapter|ch\./i.test(t)) { title = t; break; }
+  }
+  if (!title) {
+    title = (doc.title || '').trim()
+      .replace(/\s*[|»–-]\s*(Hosted Novel|Little Panda|Baihe Tales).*$/i, '').trim();
+  }
+  // make sure the banner carries the chapter number
+  if (!/\d/.test(title)) {
+    const n = chapterNum(url);
+    if (n) title = `${n}: ${title}`.replace(/: $/, '');
+  }
 
   let node = null, best = 0;
   for (const sel of CONTENT_SELECTORS) {
@@ -303,7 +317,7 @@ $('go').onclick = async () => {
     const chunks = [`${novelTitle}\nSource: ${new URL(url).host}\n`];
     for (let i = 0; i < urls.length; i++) {
       if (aborted) { log('Stopped by user.'); break; }
-      const { title, body } = extractChapter(await fetchPage(urls[i]));
+      const { title, body } = extractChapter(await fetchPage(urls[i]), urls[i]);
       chunks.push(`\n\n${'='.repeat(60)}\n${title}\n${'='.repeat(60)}\n\n${body}\n`);
       $('bar').style.width = (100 * (i + 1) / urls.length).toFixed(1) + '%';
       $('status').textContent = `${novelTitle} — ${i + 1}/${urls.length} chapters`;
