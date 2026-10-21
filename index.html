@@ -410,7 +410,8 @@ function renderChapters(fname, chapters) {
     const btn = document.createElement('button');
     btn.className = 'copybtn';
     btn.textContent = 'Copy';
-    btn.onclick = () => copyText(ch.body, btn);
+    const bar = '='.repeat(60);
+    btn.onclick = () => copyText(`${bar}\n${ch.title}\n${bar}\n\n${ch.body}`, btn);
     div.append(info, btn);
     holder.appendChild(div);
   });
