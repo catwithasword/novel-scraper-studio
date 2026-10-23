@@ -355,7 +355,7 @@ $('dl').onclick = () => {
 // UPLOAD & PER-CHAPTER COPY
 // =====================================================================
 const drop = $('drop'), fileInput = $('file');
-drop.onclick = () => fileInput.click();
+drop.onclick = () => { fileInput.value = ''; fileInput.click(); };
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('drag'); };
 drop.ondragleave = () => drop.classList.remove('drag');
 drop.ondrop = e => {
@@ -371,6 +371,7 @@ function loadFile(f) {
   reader.onload = () => {
     bookText = reader.result;
     renderChapters(f.name, splitChapters(bookText));
+    fileInput.value = '';  // allow re-selecting the same (edited) file
   };
   reader.readAsText(f, 'utf-8');
 }
